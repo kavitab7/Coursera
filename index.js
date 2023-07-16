@@ -4,10 +4,26 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
+// for saving password in hash
+const hashPassword = async (password) => {
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        return (hashedPassword);
+    } catch (err) {
+        console.log(err)
+    }
+
+}
+const comparePassword = async (password, hashedPassword) => {
+    return bcrypt.compare(password, hashedPassword);
+
+};
+
 // Task 1: Get the book list available in the shop
 app.get('/books', async (req, res) => {
     try {
-        const response = await axios.get('https://api.example.com/books');
+        const response = await axios.get('https://api/books');
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -18,7 +34,7 @@ app.get('/books', async (req, res) => {
 app.get('/books/isbn/:isbn', async (req, res) => {
     try {
         const { isbn } = req.params;
-        const response = await axios.get(`https://api.example.com/books?isbn=${isbn}`);
+        const response = await axios.get(`https://api/books?isbn=${isbn}`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -29,7 +45,7 @@ app.get('/books/isbn/:isbn', async (req, res) => {
 app.get('/books/author/:author', async (req, res) => {
     try {
         const { author } = req.params;
-        const response = await axios.get(`https://api.example.com/books?author=${author}`);
+        const response = await axios.get(`https://api/books?author=${author}`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -40,7 +56,7 @@ app.get('/books/author/:author', async (req, res) => {
 app.get('/books/title/:title', async (req, res) => {
     try {
         const { title } = req.params;
-        const response = await axios.get(`https://api.example.com/books?title=${title}`);
+        const response = await axios.get(`https://api/books?title=${title}`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -51,7 +67,7 @@ app.get('/books/title/:title', async (req, res) => {
 app.get('/books/:id/review', async (req, res) => {
     try {
         const { id } = req.params;
-        const response = await axios.get(`https://api.example.com/books/${id}/review`);
+        const response = await axios.get(`https://api/books/${id}/review`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -62,7 +78,8 @@ app.get('/books/:id/review', async (req, res) => {
 app.post('/users/register', async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        const response = await axios.post('https://api.example.com/users/register', { name, email, password });
+        const hashedPassword = await hashPassword(password)
+        const response = await axios.post('https://api/users/register', { name, email, password });
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -71,9 +88,41 @@ app.post('/users/register', async (req, res) => {
 
 // Task 7: Login as a Registered user
 app.post('/users/login', async (req, res) => {
+
+    //for checking password
     try {
         const { email, password } = req.body;
-        const response = await axios.post('https://api.example.com/users/login', { email, password });
+        const match = await comparePassword(password, user.password);
+        if (!match) {
+            return res.status(200).send({
+                success: false,
+                message: "Invalid Password",
+            });
+        }
+        //token
+        const token = await JWT.sign({ _id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: "7d",
+        });
+        res.status(200).send({
+            success: true,
+            message: "login successfully",
+            user: {
+                _id: user._id,
+               
+                email: user.email,
+               
+            },
+            token,
+        });
+    } catch (err) {
+        console.log(err)
+        res.status(500).send({
+            success: false,
+            message: 'error in login',
+        })
+    }
+    try {
+        const response = await axios.post('https://api/users/login', { email, password });
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -85,7 +134,7 @@ app.put('/books/:id/review', async (req, res) => {
     try {
         const { id } = req.params;
         const { review } = req.body;
-        const response = await axios.put(`https://api.example.com/books/${id}/review`, { review });
+        const response = await axios.put(`https://api/books/${id}/review`, { review });
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -96,7 +145,7 @@ app.put('/books/:id/review', async (req, res) => {
 app.delete('/books/:id/review', async (req, res) => {
     try {
         const { id } = req.params;
-        const response = await axios.delete(`https://api.example.com/books/${id}/review`);
+        const response = await axios.delete(`https://api/books/${id}/review`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -105,7 +154,7 @@ app.delete('/books/:id/review', async (req, res) => {
 
 // Task 10: Get all books - Using async callback function
 app.get('/books/all', (req, res) => {
-    axios.get('https://api.example.com/books')
+    axios.get('https://api/books')
         .then(response => {
             res.json(response.data);
         })
@@ -117,7 +166,7 @@ app.get('/books/all', (req, res) => {
 // Task 11: Search by ISBN - Using Promises
 app.get('/books/search/isbn/:isbn', (req, res) => {
     const { isbn } = req.params;
-    axios.get(`https://api.example.com/books?isbn=${isbn}`)
+    axios.get(`https://api/books?isbn=${isbn}`)
         .then(response => {
             res.json(response.data);
         })
@@ -130,7 +179,7 @@ app.get('/books/search/isbn/:isbn', (req, res) => {
 app.get('/books/search/author/:author', async (req, res) => {
     try {
         const { author } = req.params;
-        const response = await axios.get(`https://api.example.com/books?author=${author}`);
+        const response = await axios.get(`https://api/books?author=${author}`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -141,7 +190,7 @@ app.get('/books/search/author/:author', async (req, res) => {
 app.get('/books/search/title/:title', async (req, res) => {
     try {
         const { title } = req.params;
-        const response = await axios.get(`https://api.example.com/books?title=${title}`);
+        const response = await axios.get(`https://api/books?title=${title}`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
